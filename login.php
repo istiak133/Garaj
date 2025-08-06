@@ -2,7 +2,7 @@
 session_start();
 require_once 'config/database.php';
 
-$page_title = "Login - Car Workshop";
+$page_title = "GARAJ - Login";
 $error_message = '';
 $success_message = '';
 
