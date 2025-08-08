@@ -1,43 +1,75 @@
 <?php
 // Database configuration
-$host = 'localhost';
-$username = 'root';
-$password = '';  
-$database = 'garaj';  
-$port = 3306;  
-// Create connection
-$conn = new mysqli($host, $username, $password, $database, $port);
+define('DB_HOST', 'localhost');
+define('DB_USER', 'root');
+define('DB_PASS', '');
+define('DB_NAME', 'garaj');
 
-// Check connection
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
+// Create database connection
+function getDBConnection() {
+    $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+    
+    if ($conn->connect_error) {
+        die("Connection failed: " . $conn->connect_error);
+    }
+    
+    return $conn;
 }
 
-// Set charset to utf8
-$conn->set_charset("utf8");
-
-// Function to sanitize input data
-function sanitize_input($data) {
-    global $conn;
-    $data = trim($data);
-    $data = stripslashes($data);
-    $data = htmlspecialchars($data);
-    return mysqli_real_escape_string($conn, $data);
+// Start session if not already started
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
 }
 
-// Function to validate email
-function validate_email($email) {
-    return filter_var($email, FILTER_VALIDATE_EMAIL);
+// Check if user is logged in
+function isLoggedIn() {
+    return isset($_SESSION['user_id']);
 }
 
-// Function to validate phone number (Bangladesh format)
-function validate_phone($phone) {
-    // Remove spaces and dashes
-    $phone = preg_replace('/[\s\-]/', '', $phone);
-    // Check if it's 11 digits starting with 01
-    return preg_match('/^01[3-9]\d{8}$/', $phone);
+// Get user info
+function getCurrentUser() {
+    if (isLoggedIn()) {
+        $conn = getDBConnection();
+        $user_id = $_SESSION['user_id'];
+        
+        $stmt = $conn->prepare("SELECT * FROM users WHERE user_id = ?");
+        $stmt->bind_param("i", $user_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        if ($result->num_rows > 0) {
+            return $result->fetch_assoc();
+        }
+    }
+    return null;
 }
 
-// Start session
-session_start();
+// Update database to include mechanic specializations
+function updateMechanicSpecializations() {
+    $conn = getDBConnection();
+    
+    $updates = [
+        [1, 'Engine Specialist', 'Engine Repair'],
+        [2, 'Transmission Expert', 'Brake Repair'],
+        [3, 'Brake Specialist', 'Brake Repair'],
+        [4, 'Electrical Systems', 'Body Color Change'],
+        [5, 'General Mechanic', 'General Service']
+    ];
+    
+    foreach ($updates as $update) {
+        $stmt = $conn->prepare("UPDATE mechanics SET specialization = ?, service_type = ? WHERE mechanic_id = ?");
+        if (!$stmt) {
+            // If service_type column doesn't exist, create it
+            $conn->query("ALTER TABLE mechanics ADD COLUMN service_type VARCHAR(100) DEFAULT 'General Service'");
+            $stmt = $conn->prepare("UPDATE mechanics SET specialization = ?, service_type = ? WHERE mechanic_id = ?");
+        }
+        $stmt->bind_param("ssi", $update[1], $update[2], $update[0]);
+        $stmt->execute();
+    }
+    
+    $conn->close();
+}
+
+// Call this once to update the database
+// updateMechanicSpecializations();
 ?>
