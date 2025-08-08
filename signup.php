@@ -50,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $error_message = "Phone number is already registered.";
             } else {
                 // Insert new user
-                $hashed_password = md5($password); // Using MD5 as per your database setup
+                $hashed_password = password_hash($password, PASSWORD_DEFAULT);
                 $insert_query = "INSERT INTO users (full_name, email, phone, address, password) VALUES (?, ?, ?, ?, ?)";
                 $insert_stmt = $conn->prepare($insert_query);
                 $insert_stmt->bind_param("sssss", $full_name, $email, $phone, $address, $hashed_password);
@@ -125,7 +125,7 @@ include 'includes/header.php';
                     class="form-input" 
                     value="<?php echo isset($_POST['phone']) ? htmlspecialchars($_POST['phone']) : ''; ?>"
                     required
-                    placeholder="01712345678"
+                    placeholder="+8801XXXXXXXXX"
                     pattern="01[3-9][0-9]{8}"
                     title="Please enter a valid Bangladesh phone number (01XXXXXXXXX)"
                 >
