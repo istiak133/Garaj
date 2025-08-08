@@ -648,3 +648,58 @@ small {
 .auth-link:hover {
     text-decoration: underline;
 }
+
+/* Profile Details */
+.profile-details {
+    background: rgba(24, 24, 27, 0.9);
+    padding: 1.5rem;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+    border: 1px solid #27272a;
+}
+
+.profile-details p {
+    margin: 0.5rem 0;
+    color: #d4d4d8;
+}
+
+/* Appointment Table */
+.appointment-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 2rem;
+    background: rgba(24, 24, 27, 0.9);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.appointment-table th,
+.appointment-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid #27272a;
+}
+
+.appointment-table th {
+    background: rgba(17, 17, 19, 0.9);
+    color: #a1a1aa;
+    font-weight: 500;
+}
+
+.appointment-table td {
+    color: #e4e4e7;
+}
+
+.appointment-table tr:hover {
+    background: rgba(39, 39, 42, 0.5);
+}
+
+/* No Appointments Message */
+.no-appointments {
+    color: #a1a1aa;
+    text-align: center;
+    padding: 1rem;
+    background: rgba(24, 24, 27, 0.9);
+    border-radius: 12px;
+    margin-bottom: 2rem;
+}

@@ -6,6 +6,12 @@ $page_title = "GARAJ - Login";
 $error_message = '';
 $success_message = '';
 
+// Check for signup success message
+if (isset($_SESSION['signup_success'])) {
+    $success_message = $_SESSION['signup_success'];
+    unset($_SESSION['signup_success']); // Remove after displaying
+}
+
 // Check for logout success message
 if (isset($_GET['logout']) && $_GET['logout'] == 'success') {
     $success_message = "You have been logged out successfully.";
@@ -13,7 +19,7 @@ if (isset($_GET['logout']) && $_GET['logout'] == 'success') {
 
 // Redirect if already logged in
 if (isset($_SESSION['user_id'])) {
-    header("Location: index.php");
+    header("Location: dashboard.php"); // Changed from index.php to dashboard.php
     exit();
 }
 
@@ -27,36 +33,68 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $error_message = "Please fill in all fields.";
     } else {
         // Check user credentials
-        $query = "SELECT user_id, full_name, email, password FROM users WHERE email = ? AND status = 'Active'";
+        $query = "SELECT user_id, full_name, email, password, status FROM users WHERE email = ?";
         $stmt = $conn->prepare($query);
-        $stmt->bind_param("s", $email);
-        $stmt->execute();
-        $result = $stmt->get_result();
         
-        if ($result->num_rows == 1) {
-            $user = $result->fetch_assoc();
+        if ($stmt === false) {
+            $error_message = "Database error: " . $conn->error;
+        } else {
+            $stmt->bind_param("s", $email);
+            $stmt->execute();
+            $result = $stmt->get_result();
             
-            // Verify password (using MD5 as per your database setup)
-            if (md5($password) === $user['password']) {
-                // Set session variables
-                $_SESSION['user_id'] = $user['user_id'];
-                $_SESSION['user_name'] = $user['full_name'];
-                $_SESSION['user_email'] = $user['email'];
+            if ($result->num_rows == 1) {
+                $user = $result->fetch_assoc();
                 
-                // Update last login
-                $update_query = "UPDATE users SET last_login = NOW() WHERE user_id = ?";
-                $update_stmt = $conn->prepare($update_query);
-                $update_stmt->bind_param("i", $user['user_id']);
-                $update_stmt->execute();
-                
-                // Redirect to main page
-                header("Location: index.php");
-                exit();
+                // Check if account is active
+                if ($user['status'] !== 'Active') {
+                    $error_message = "Your account has been deactivated. Please contact support.";
+                } else {
+                    // Check password - handle both MD5 (old) and password_hash (new) methods
+                    $password_valid = false;
+                    
+                    // First try password_hash method (secure)
+                    if (password_verify($password, $user['password'])) {
+                        $password_valid = true;
+                    } 
+                    // Fallback to MD5 for existing accounts
+                    elseif (md5($password) === $user['password']) {
+                        $password_valid = true;
+                        
+                        // Optional: Upgrade password to secure hash
+                        $new_hash = password_hash($password, PASSWORD_DEFAULT);
+                        $upgrade_query = "UPDATE users SET password = ? WHERE user_id = ?";
+                        $upgrade_stmt = $conn->prepare($upgrade_query);
+                        if ($upgrade_stmt) {
+                            $upgrade_stmt->bind_param("si", $new_hash, $user['user_id']);
+                            $upgrade_stmt->execute();
+                        }
+                    }
+                    
+                    if ($password_valid) {
+                        // Set session variables (consistent naming)
+                        $_SESSION['user_id'] = $user['user_id'];
+                        $_SESSION['full_name'] = $user['full_name']; // Consistent with signup
+                        $_SESSION['email'] = $user['email'];
+                        
+                        // Update last login
+                        $update_query = "UPDATE users SET last_login = NOW() WHERE user_id = ?";
+                        $update_stmt = $conn->prepare($update_query);
+                        if ($update_stmt) {
+                            $update_stmt->bind_param("i", $user['user_id']);
+                            $update_stmt->execute();
+                        }
+                        
+                        // Redirect to dashboard
+                        header("Location: dashboard.php");
+                        exit();
+                    } else {
+                        $error_message = "Invalid email or password.";
+                    }
+                }
             } else {
                 $error_message = "Invalid email or password.";
             }
-        } else {
-            $error_message = "Invalid email or password.";
         }
     }
 }
@@ -68,7 +106,7 @@ include 'includes/header.php';
     <div class="auth-card">
         <div class="auth-header">
             <h1 class="auth-title">Welcome Back</h1>
-            <p class="auth-subtitle">Sign in to your account</p>
+            <p class="auth-subtitle">Sign in to your GARAJ account</p>
         </div>
         
         <?php if (!empty($success_message)): ?>
@@ -94,6 +132,7 @@ include 'includes/header.php';
                     value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>"
                     required
                     placeholder="Enter your email"
+                    autofocus
                 >
             </div>
             

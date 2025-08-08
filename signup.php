@@ -1,14 +1,20 @@
 <?php
+// Start output buffering to handle any premature output
+ob_start();
 session_start();
 require_once 'config/database.php';
 
-$page_title = "Sign Up - Car Workshop";
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+$page_title = "Sign Up - GARAJ";
 $error_message = '';
 $success_message = '';
 
 // Redirect if already logged in
 if (isset($_SESSION['user_id'])) {
-    header("Location: index.php");
+    header("Location: dashboard.php");  // Changed from login.php to dashboard.php
     exit();
 }
 
@@ -32,35 +38,50 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         // Check if email already exists
         $check_query = "SELECT user_id FROM users WHERE email = ?";
         $check_stmt = $conn->prepare($check_query);
-        $check_stmt->bind_param("s", $email);
-        $check_stmt->execute();
-        $check_result = $check_stmt->get_result();
-        
-        if ($check_result->num_rows > 0) {
-            $error_message = "Email address is already registered.";
+        if ($check_stmt === false) {
+            $error_message = "Database error: " . $conn->error;
         } else {
-            // Check if phone already exists
-            $phone_check_query = "SELECT user_id FROM users WHERE phone = ?";
-            $phone_check_stmt = $conn->prepare($phone_check_query);
-            $phone_check_stmt->bind_param("s", $phone);
-            $phone_check_stmt->execute();
-            $phone_check_result = $phone_check_stmt->get_result();
+            $check_stmt->bind_param("s", $email);
+            $check_stmt->execute();
+            $check_result = $check_stmt->get_result();
             
-            if ($phone_check_result->num_rows > 0) {
-                $error_message = "Phone number is already registered.";
+            if ($check_result->num_rows > 0) {
+                $error_message = "Email address is already registered.";
             } else {
-                // Insert new user
-                $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-                $insert_query = "INSERT INTO users (full_name, email, phone, address, password) VALUES (?, ?, ?, ?, ?)";
-                $insert_stmt = $conn->prepare($insert_query);
-                $insert_stmt->bind_param("sssss", $full_name, $email, $phone, $address, $hashed_password);
-                
-                if ($insert_stmt->execute()) {
-                    $success_message = "Account created successfully! You can now login.";
-                    // Clear form data
-                    $_POST = array();
+                // Check if phone already exists
+                $phone_check_query = "SELECT user_id FROM users WHERE phone = ?";
+                $phone_check_stmt = $conn->prepare($phone_check_query);
+                if ($phone_check_stmt === false) {
+                    $error_message = "Database error: " . $conn->error;
                 } else {
-                    $error_message = "Error creating account. Please try again.";
+                    $phone_check_stmt->bind_param("s", $phone);
+                    $phone_check_stmt->execute();
+                    $phone_check_result = $phone_check_stmt->get_result();
+                    
+                    if ($phone_check_result->num_rows > 0) {
+                        $error_message = "Phone number is already registered.";
+                    } else {
+                        // Insert new user
+                        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+                        $insert_query = "INSERT INTO users (full_name, email, phone, address, password) VALUES (?, ?, ?, ?, ?)";
+                        $insert_stmt = $conn->prepare($insert_query);
+                        if ($insert_stmt === false) {
+                            $error_message = "Database error: " . $conn->error;
+                        } else {
+                            $insert_stmt->bind_param("sssss", $full_name, $email, $phone, $address, $hashed_password);
+                            
+                            if ($insert_stmt->execute()) {
+                                // FIXED: Store success message in session for display on login page
+                                $_SESSION['signup_success'] = "Account created successfully! Please log in with your email and password.";
+                                
+                                // Redirect to login page
+                                header("Location: login.php");
+                                exit();
+                            } else {
+                                $error_message = "Error creating account: " . $conn->error;
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -194,3 +215,4 @@ document.getElementById('confirm_password').addEventListener('input', function()
 </script>
 
 <?php include 'includes/footer.php'; ?>
+<?php ob_end_flush(); ?>
